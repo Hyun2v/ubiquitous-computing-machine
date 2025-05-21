@@ -3,174 +3,187 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Y‑map 맛집 지도</title>
+  <title>Y-map 월계동 맛집</title>
 
-  <!-- Leaflet CDN -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <style>
     body{margin:0;font-family:sans-serif;}
-    header{
-      background:#ff6347;color:#fff;padding:12px 16px;font-size:20px;
-      display:flex;align-items:center;gap:12px;flex-wrap:wrap;
-    }
-    #brand{font-weight:700;font-size:22px;margin-right:auto;}
-    #search{flex:1;min-width:160px;max-width:280px;padding:6px 10px;
+    header{background:#faeb1d;color:#fff;padding:12px 16px;font-size:20px;
+           display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+    #brand{font-size:22px;font-weight:700;margin-right:auto;}
+    #search{flex:1;min-width:160px;max-width:220px;padding:6px 10px;
             border:none;border-radius:4px;}
-    button.head-btn{
-      background:#fff;border:none;border-radius:4px;padding:6px 14px;
-      cursor:pointer;font-weight:600;
-    }
-    #map  {width:100%;height:60vh;}
-    #list {padding:12px;}
-    .place{cursor:pointer;margin:4px 0;padding:6px;border-bottom:1px solid #eee;}
+    #category{min-width:110px;padding:6px 10px;border:none;border-radius:4px;}
+    button.head-btn{background:#fff;border:none;border-radius:4px;padding:6px 14px;
+                    cursor:pointer;font-weight:600;}
+    #map{width:100%;height:60vh;}
+    #list{padding:12px;}
+    .place{cursor:pointer;margin:6px 0;padding:6px;border-bottom:1px solid #eee;
+           display:flex;gap:10px;align-items:flex-start;}
+    .place-thumb{width:60px;height:60px;object-fit:cover;border-radius:4px;}
+    .place-info{flex:1;}
     .place-name{font-weight:600}
     .hidden{display:none;}
     .footer{text-align:center;font-size:14px;padding:8px;color:#666;}
-    /* 간단 모달 */
-    .modal-back{position:fixed;top:0;left:0;right:0;bottom:0;
-      background:rgba(0,0,0,.4);display:flex;align-items:center;
-      justify-content:center;z-index:999;display:none;}
+    /* 모달 */
+    .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.45);
+      display:none;align-items:center;justify-content:center;z-index:999;}
     .modal{background:#fff;padding:24px;border-radius:8px;min-width:260px;}
     .modal h3{margin-top:0;}
   </style>
 </head>
 
 <body>
-  <!-- ── 헤더 ─────────────────────────────────────────── -->
   <header>
-    <span id="brand">🍜 Y‑map</span>
+    <span id="brand">🍜 Y-map</span>
+
+    <!-- 검색창 -->
     <input id="search" type="text" placeholder="맛집 검색 (이름·주소)" />
+
+    <!-- ★ 카테고리 드롭다운 : 검색창 옆 -->
+    <select id="category">
+      <option value="all">전체</option>
+      <option value="한식">한식</option>
+      <option value="중식">중식</option>
+      <option value="양식">양식</option>
+      <option value="카페">카페</option>
+    </select>
+
     <button class="head-btn" id="nearbyBtn">내 주변</button>
     <button class="head-btn" id="loginBtn">로그인</button>
     <button class="head-btn" id="joinBtn">회원가입</button>
   </header>
 
-  <!-- ── 지도 & 리스트 ───────────────────────────────── -->
   <div id="map"></div>
   <div id="list"></div>
-  <div class="footer">powered by Leaflet & OpenStreetMap</div>
+  <div class="footer">powered by Leaflet & OpenStreetMap</div>
 
-  <!-- ── 모달 (로그인/회원가입 placeholder) ───────────── -->
-  <div class="modal-back" id="modalBack">
-    <div class="modal">
-      <h3 id="modalTitle"></h3>
-      <p>데모용 UI입니다. 백엔드 연결 후 구현하세요 🙂</p>
-      <button class="head-btn" onclick="modalBack.style.display='none'">닫기</button>
-    </div>
+  <!-- 모달 -->
+  <div class="modal-back" id="modalBack" onclick="this.style.display='none'">
+    <div class="modal" id="modalBox" onclick="event.stopPropagation();"></div>
   </div>
 
-  <!-- ── Leaflet JS ─────────────────────────────────── -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 
-  <!-- ── 앱 스크립트 ────────────────────────────────── -->
-  <script defer>
-  window.addEventListener('DOMContentLoaded', () => {
-    if (!window.L) { alert('Leaflet 로드 실패'); return; }
+<script defer>
+window.addEventListener('DOMContentLoaded', () => {
 
-    /* 1) 지도 ------------------------------------------------------------ */
-    const map = L.map('map').setView([37.5665, 126.9780], 13);
-    L.tileLayer(
-      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      { attribution:'© OpenStreetMap' }
-    ).addTo(map);
+  /* 1) 지도 ----------------------------------------------------------- */
+  const map = L.map('map').setView([37.6250,127.0550], 15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              {attribution:'© OpenStreetMap'}).addTo(map);
 
-    /* 2) 맛집 데이터 ----------------------------------------------------- */
-    const places = [
-      { name:'모찌라멘',  addr:'서울 중구 세종대로', lat:37.5665, lng:126.9780 },
-      { name:'카레짱',    addr:'서울 중구 충무로',   lat:37.5651, lng:126.9895 },
-      { name:'곱창의 정석', addr:'서울 중구 명동',   lat:37.5670, lng:126.9820 },
-      { name:'돈카츠명가', addr:'서울 용산구 이태원', lat:37.5345, lng:126.9940 },
-      { name:'모찌카페',  addr:'서울 강남구 강남대로',lat:37.4980, lng:127.0276 }
-    ];
+  /* 2) 맛집 데이터 (category 필드 포함) ------------------------------ */
+  const places = [
+    { name:'민들레뜨락', addr:'노원구 초안산로2길 102',
+      lat:37.633023,lng:127.057748,rating:4.6,category:'한식',
+      review:'대학교 회식 + 친절한 가격!',
+      img:'https://images.unsplash.com/photo-1617196033535-996f98a5ca7f?auto=format&fit=crop&w=600&q=60' },
+    { name:'오복양평해장국', addr:'노원구 월계로37길 5',
+      lat:37.6247,lng:127.0529,rating:4.4,category:'국밥',
+      review:'해장국 국물이 끝내줘요',
+      img:'https://images.unsplash.com/photo-1604908812910-5f911f8a574d?auto=format&fit=crop&w=600&q=60' },
+    { name:'장수곱창', addr:'노원구 석계로 20',
+      lat:37.6232,lng:127.0561,rating:4.5,category:'곱창·고기',
+      review:'곱창이 신선하고 양념이 진해요',
+      img:'https://images.unsplash.com/photo-1589308914961-426388972f70?auto=format&fit=crop&w=600&q=60' },
+    { name:'미소한우국밥', addr:'노원구 월계로43길 3',
+      lat:37.6273,lng:127.0550,rating:4.3,category:'국밥',
+      review:'사골 국물이 깊고 깔끔!',
+      img:'https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&w=600&q=60' },
+    { name:'더그린 브런치카페', addr:'노원구 마들로3길 20',
+      lat:37.6225,lng:127.0595,rating:4.2,category:'카페',
+      review:'말차 라떼와 샌드위치 추천!',
+      img:'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=600&q=60' }
+  ];
 
-    /* 3) 마커·리스트 ---------------------------- */
-    const listDiv   = document.getElementById('list');
-    const markers   = [];
-    const addPlace  = p => {
-      const marker = L.marker([p.lat, p.lng])
-        .bindPopup(`<strong>${p.name}</strong><br>${p.addr}`).addTo(map);
+  const stars = r=>'★★★★★'.slice(0,Math.round(r))+'☆☆☆☆☆'.slice(0,5-Math.round(r));
 
-      const item = document.createElement('div');
-      item.className = 'place';
-      item.innerHTML = `<div class="place-name">${p.name}</div>
-                        <div class="place-addr">${p.addr}</div>`;
-      item.addEventListener('click', () => {
-        map.setView([p.lat, p.lng], 17);
-        marker.openPopup();
-      });
-      listDiv.appendChild(item);
-      markers.push({marker,item,data:p});
-    };
-    places.forEach(addPlace);
+  /* 3) 마커 · 리스트 -------------------------------------------------- */
+  const listDiv=document.getElementById('list');
+  const markers=[];
+  function addPlace(p){
+    const marker=L.marker([p.lat,p.lng]).addTo(map).bindPopup(`
+      <div style="text-align:center">
+        <img src="${p.img}" style="width:140px;height:100px;object-fit:cover;border-radius:4px;"><br>
+        <strong>${p.name}</strong><br>
+        ${stars(p.rating)} (${p.rating.toFixed(1)})<br>
+        <small>${p.category}</small><br>
+        ${p.addr}<br>
+        <em style="color:#555;">"${p.review}"</em>
+      </div>`);
+    const item=document.createElement('div');
+    item.className='place';
+    item.innerHTML=`
+      <img class="place-thumb" src="${p.img}">
+      <div class="place-info">
+        <div class="place-name">${p.name}
+          <span style="color:#ffb400;">${stars(p.rating)}</span>
+          <span style="font-size:12px;color:#666;">(${p.rating.toFixed(1)})</span>
+        </div>
+        <div style="font-size:12px;color:#888;">${p.category}</div>
+        <div class="place-addr">${p.addr}</div>
+        <div style="font-size:12px;color:#555;">"${p.review}"</div>
+      </div>`;
+    item.onclick=()=>{map.setView([p.lat,p.lng],17);marker.openPopup();};
+    listDiv.appendChild(item);
+    markers.push({marker,item,data:p});
+  }
+  places.forEach(addPlace);
 
-    /* 4) 검색 필터 -------------------------------- */
-    const searchInput = document.getElementById('search');
-    searchInput.addEventListener('input', () => {
-      const q = searchInput.value.trim().toLowerCase();
-      markers.forEach(obj => {
-        const match = (obj.data.name+obj.data.addr).toLowerCase().includes(q);
-        obj.item.classList.toggle('hidden', !match);
-        match ? map.addLayer(obj.marker) : map.removeLayer(obj.marker);
-      });
+  /* 4) 검색 + 카테고리 필터 ------------------------------------------ */
+  const searchInp=document.getElementById('search');
+  const catSel=document.getElementById('category');
+  function applyFilter(){
+    const q=searchInp.value.trim().toLowerCase();
+    const cat=catSel.value;
+    markers.forEach(o=>{
+      const txtMatch=(o.data.name+o.data.addr).toLowerCase().includes(q);
+      const catMatch=(cat==='all'||o.data.category===cat);
+      const show=txtMatch&&catMatch;
+      o.item.classList.toggle('hidden',!show);
+      show?map.addLayer(o.marker):map.removeLayer(o.marker);
     });
+  }
+  searchInp.addEventListener('input',applyFilter);
+  catSel.addEventListener('change',applyFilter);
 
-    /* 5) 내 주변 추천 ----------------------------- */
-    const nearBtn = document.getElementById('nearbyBtn');
-    nearBtn.addEventListener('click', () => {
-      if (!navigator.geolocation) {
-        alert('이 브라우저는 위치 서비스를 지원하지 않습니다.');
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(pos => {
-        const {latitude, longitude} = pos.coords;
-        const userLatLng = L.latLng(latitude, longitude);
+  /* 5) 내 주변 (기존) ----------------------------------------------- */
+  document.getElementById('nearbyBtn').onclick=()=>{
+    if(!navigator.geolocation) return alert('위치 서비스 미지원');
+    navigator.geolocation.getCurrentPosition(pos=>{
+      const me=L.latLng(pos.coords.latitude,pos.coords.longitude);
+      L.marker(me).addTo(map).bindPopup('내 위치').openPopup();
+      map.setView(me,15);
+    },()=>alert('위치 접근 거부됨'));
+  };
 
-        // ① 사용자 위치 마커
-        L.marker(userLatLng, {icon:L.icon({
-          iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-          iconAnchor:[12,41],popupAnchor:[0,-38]
-        })}).addTo(map)
-          .bindPopup('내 위치').openPopup();
+  /* 6) 로그인 · 회원가입 모달 (기존) --------------------------------- */
+  const modalBack=document.getElementById('modalBack');
+  const modalBox=document.getElementById('modalBox');
+  const tmpl={
+    login:`<h3>로그인</h3>
+      <label>이메일<br><input type="email" id="loginEmail"></label><br>
+      <label>비밀번호<br><input type="password" id="loginPw"></label><br><br>
+      <button class="head-btn" onclick="alert('로그인!')">로그인</button>
+      <button class="head-btn" onclick="modalBack.style.display='none'">닫기</button>`,
+    join:`<h3>회원가입</h3>
+      <label>이메일<br><input type="email" id="joinEmail"></label><br>
+      <label>비밀번호<br><input type="password" id="joinPw"></label><br>
+      <label>비밀번호 확인<br><input type="password" id="joinPw2"></label><br><br>
+      <button class="head-btn" onclick="alert('가입!')">가입하기</button>
+      <button class="head-btn" onclick="modalBack.style.display='none'">닫기</button>`
+  };
+  function openModal(t){modalBox.innerHTML=tmpl[t];modalBack.style.display='flex';}
+  document.getElementById('loginBtn').onclick=()=>openModal('login');
+  document.getElementById('joinBtn').onclick=()=>openModal('join');
 
-        // ② 거리 계산하여 2km 이내만 추천
-        const nearby = markers.filter(o => {
-          return userLatLng.distanceTo([o.data.lat, o.data.lng]) <= 2000;
-        });
+}); /* DOMContentLoaded */
+</script>
+</body>
+</html>
 
-        if (nearby.length===0){
-          alert('반경 2km 내 추천 맛집이 없어요 😢');
-          return;
-        }
-
-        // ③ 전체 마커/리스트 숨기고, 가까운 것만 보여주기
-        markers.forEach(o=>{
-          o.item.classList.add('hidden');
-          map.removeLayer(o.marker);
-        });
-        nearby.forEach(o=>{
-          o.item.classList.remove('hidden');
-          map.addLayer(o.marker);
-        });
-
-        // ④ 지도 중심 이동
-        map.setView(userLatLng, 15);
-      }, err => {
-        alert('위치 접근이 거부되었습니다 😢');
-      });
-    });
-
-    /* 6) 로그인/회원가입 플래그 모달 ------------- */
-    const modalBack = document.getElementById('modalBack');
-    const modalTitle= document.getElementById('modalTitle');
-    const openModal = title => {
-      modalTitle.textContent = title;
-      modalBack.style.display = 'flex';
-    };
-    document.getElementById('loginBtn').onclick = () => openModal('로그인');
-    document.getElementById('joinBtn').onclick  = () => openModal('회원가입');
   });
   </script>
 </body>
